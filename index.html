@@ -94,6 +94,17 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
       text-align: left;
     }
+
+    #model-info {
+      background: #e0f0ff;
+      color: #333;
+      padding: 15px;
+      border-radius: 12px;
+      margin: 20px 0;
+      text-align: left;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      font-size: 16px;
+    }
   </style>
 </head>
 <body>
@@ -110,6 +121,7 @@
   <!-- Section 2: Webcam Classifier -->
   <div class="section" id="section2">
     <h2>Image Classifier Running...</h2>
+    <div id="model-info"></div> <!-- New model info area -->
     <button id="startStopBtn" onclick="toggleWebcam()">Stop</button>
     <div id="webcam-container"></div>
     <div id="label-container"></div>
@@ -119,11 +131,12 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
   <script>
     let model, webcam, labelContainer, maxPredictions;
     let isRunning = false;
     let modelURL = "";
-    
+
     function startClassifier() {
       const code = document.getElementById("jsInput").value;
       const match = code.match(/const URL = \"(.*?)\"/);
@@ -156,6 +169,14 @@
 
       model = await tmImage.load(modelPath, metadataPath);
       maxPredictions = model.getTotalClasses();
+      const classLabels = await model.getClassLabels();
+
+      // Display number of classes and class labels
+      const modelInfoDiv = document.getElementById("model-info");
+      modelInfoDiv.innerHTML = `
+        <strong>🔢 Number of Classes:</strong> ${maxPredictions}<br><br>
+        <strong>📚 Class Labels:</strong><br> ${classLabels.map((label, i) => `${i + 1}. ${label}`).join("<br>")}
+      `;
 
       const flip = true;
       webcam = new tmImage.Webcam(400, 400, flip);
@@ -193,6 +214,7 @@
       if (webcam) await webcam.stop();
       document.getElementById("webcam-container").innerHTML = "";
       document.getElementById("label-container").innerHTML = "";
+      document.getElementById("model-info").innerHTML = "";
     }
   </script>
 </body>
