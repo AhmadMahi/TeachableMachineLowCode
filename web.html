@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartCam Classifier Notebook</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f2f5f9;
+      padding-top: 60px;
+      padding-bottom: 60px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      flex-direction: column;
+    }
+
+    header, footer {
+      position: fixed;
+      width: 100%;
+      background: #4a90e2;
+      color: white;
+      text-align: center;
+      padding: 15px 10px;
+      font-weight: bold;
+      z-index: 999;
+    }
+
+    header {
+      top: 0;
+    }
+
+    footer {
+      bottom: 0;
+      font-size: 14px;
+    }
+
+    .section {
+      display: none;
+      width: 100%;
+      max-width: 600px;
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      text-align: center;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 15px;
+      font-size: 16px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      resize: vertical;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    button {
+      background: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    #webcam-container canvas {
+      width: 100%;
+      max-width: 400px;
+      border-radius: 16px;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    #label-container div {
+      background: #edf3fc;
+      padding: 10px 15px;
+      margin: 6px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+
+  <header>SmartCam Classifier</header>
+
+  <!-- Section 1: Input JavaScript Code -->
+  <div class="section active" id="section1">
+    <h2>Paste Your Teachable Machine JS Code</h2>
+    <textarea id="jsInput" placeholder="Paste your Teachable Machine JavaScript here..."></textarea>
+    <button onclick="startClassifier()">Start</button>
+  </div>
+
+  <!-- Section 2: Webcam Classifier -->
+  <div class="section" id="section2">
+    <h2>Image Classifier Running...</h2>
+    <button id="startStopBtn" onclick="toggleWebcam()">Stop</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+  </div>
+
+  <footer>Developed with ❤️ by REVA</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+  <script>
+    let model, webcam, labelContainer, maxPredictions;
+    let isRunning = false;
+    let modelURL = "";
+    
+    function startClassifier() {
+      const code = document.getElementById("jsInput").value;
+      const match = code.match(/const URL = \"(.*?)\"/);
+      if (match && match[1]) {
+        modelURL = match[1];
+        document.getElementById("section1").classList.remove("active");
+        document.getElementById("section2").classList.add("active");
+        toggleWebcam();
+      } else {
+        alert("Please paste valid Teachable Machine JS code with URL variable.");
+      }
+    }
+
+    async function toggleWebcam() {
+      const button = document.getElementById("startStopBtn");
+      if (!isRunning) {
+        await init();
+        button.textContent = "Stop";
+        isRunning = true;
+      } else {
+        await stopWebcam();
+        button.textContent = "Start";
+        isRunning = false;
+      }
+    }
+
+    async function init() {
+      const modelPath = modelURL + "model.json";
+      const metadataPath = modelURL + "metadata.json";
+
+      model = await tmImage.load(modelPath, metadataPath);
+      maxPredictions = model.getTotalClasses();
+
+      const flip = true;
+      webcam = new tmImage.Webcam(400, 400, flip);
+      await webcam.setup();
+      await webcam.play();
+      window.requestAnimationFrame(loop);
+
+      document.getElementById("webcam-container").innerHTML = "";
+      document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+      labelContainer = document.getElementById("label-container");
+      labelContainer.innerHTML = "";
+      for (let i = 0; i < maxPredictions; i++) {
+        labelContainer.appendChild(document.createElement("div"));
+      }
+    }
+
+    async function loop() {
+      if (!isRunning) return;
+      webcam.update();
+      await predict();
+      window.requestAnimationFrame(loop);
+    }
+
+    async function predict() {
+      const prediction = await model.predict(webcam.canvas);
+      for (let i = 0; i < maxPredictions; i++) {
+        const classPrediction =
+          prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+        labelContainer.childNodes[i].innerHTML = classPrediction;
+      }
+    }
+
+    async function stopWebcam() {
+      if (webcam) await webcam.stop();
+      document.getElementById("webcam-container").innerHTML = "";
+      document.getElementById("label-container").innerHTML = "";
+    }
+  </script>
+</body>
+</html>
